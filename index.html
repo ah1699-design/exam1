@@ -252,7 +252,7 @@
 
     <div class="container">
         <div id="student-setup">
-            <h1>⚡ 雙電阻並聯隨機特訓班 ⚡</h1>
+            <h1>⚡ 一元一次與歐姆定律隨機特訓班 ⚡</h1>
             <div class="subtitle">連續答對 2 題即可抽卡！(每次開始自動隨機產生20題)</div>
             
             <div class="warning-box">
@@ -432,54 +432,141 @@ const cardPacks = {
             
 };
 
-        // 🧠 動態隨機題庫產生器 (每次開始產生 20 題並聯電阻練習題)
+        // 🧠 20 題動態隨機題庫產生器 (前10題：一元一次方程式，後10題：V=IR歐姆定律練習)
         let quizData = {};
 
         function generateRandomParallelQuiz() {
             quizData = {};
-            const resistorValues = [10, 20, 30, 40, 50, 60, 80, 100, 120, 150, 200, 300];
 
-            for (let i = 1; i <= 10; i++) {
-                let r1 = resistorValues[Math.floor(Math.random() * resistorValues.length)];
-                let r2 = resistorValues[Math.floor(Math.random() * resistorValues.length)];
-                
-                let rtExact = (r1 * r2) / (r1 + r2);
-                let rt = Number(rtExact.toFixed(1));
-
+            for (let i = 1; i <= 20; i++) {
                 let qId = `q${i}`;
                 let nextQId = i === 20 ? "end" : `q${i + 1}`;
                 let helpId = `q${i}_help`;
 
-                let wrongOptions = [];
-                while (wrongOptions.length < 3) {
-                    let offset = (Math.random() * 10 - 5);
-                    let fakeRt = Number((rt + offset).toFixed(1));
-                    if (fakeRt !== rt && fakeRt > 0 && !wrongOptions.includes(fakeRt)) {
-                        wrongOptions.push(fakeRt);
+                if (i <= 10) {
+                    // 前 10 題：一元一次方程式 (ax + b = c)
+                    let a = Math.floor(Math.random() * 5) + 2; // 係數 a (2~6)
+                    let x = Math.floor(Math.random() * 10) + 1; // 答案 x (1~10)
+                    let b = Math.floor(Math.random() * 20) + 1; // 常數 b (1~20)
+                    let c = a * x + b; // 等號右邊的值
+
+                    // 產生 3 個錯誤答案選項
+                    let wrongs = [];
+                    while (wrongs.length < 3) {
+                        let fakeX = x + (Math.random() < 0.5 ? 1 : -1) * (Math.floor(Math.random() * 4) + 1);
+                        if (fakeX !== x && fakeX > 0 && !wrongs.includes(fakeX)) {
+                            wrongs.push(fakeX);
+                        }
+                    }
+
+                    quizData[qId] = {
+                        tag: `數學特訓 第 ${i}/20 題 (一元一次方程式)`,
+                        text: `請解一元一次方程式：<br><strong>$${a}x + ${b} = ${c}$</strong><br>請問 $x$ 的值為多少？`,
+                        options: [
+                            { text: `x = ${x}`, next: nextQId, isCorrect: true },
+                            { text: `x = ${wrongs[0]}`, next: helpId, log: `第${i}題錯：方程式移項或計算錯誤` },
+                            { text: `x = ${wrongs[1]}`, next: helpId, log: `第${i}題錯` },
+                            { text: `x = ${wrongs[2]}`, next: helpId, log: `第${i}題錯` }
+                        ]
+                    };
+
+                    quizData[helpId] = {
+                        tag: `救援：一元一次方程式 第 ${i} 題`,
+                        text: `【提示】解方程式步驟：<br>1. 移項：$${a}x = ${c} - ${b} \\Rightarrow ${a}x = ${c - b}$<br>2. 求解：$x = \\frac{${c - b}}{${a}} = ${x}$。`,
+                        aiPrompt: `請幫我詳細說明如何求解一元一次方程式 ${a}x + ${b} = ${c}，並一步步帶我算出 x = ${x}。`,
+                        aiUrl: "https://gemini.google.com/",
+                        options: [
+                            { text: `x = ${x}`, next: nextQId, isCorrect: true },
+                            { text: `x = ${x + 5}`, next: helpId, log: `第${i}題救援失敗` }
+                        ]
+                    };
+
+                } else {
+                    // 後 10 題：V = IR 歐姆定律練習 (隨機挖掉 V, I, 或 R 其中一個)
+                    let type = Math.floor(Math.random() * 3); // 0: 求V, 1: 求I, 2: 求R
+                    let rVals = [10, 20, 50, 100, 200, 220, 300, 470, 500, 1000];
+                    let iVals = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2]; // 常用電流 (A)
+
+                    let r = rVals[Math.floor(Math.random() * rVals.length)];
+                    let iCurrent = iVals[Math.floor(Math.random() * iVals.length)];
+                    let v = Number((iCurrent * r).toFixed(1)); // 計算電壓 V
+
+                    // 圖片標籤與顯示設定
+                    let imgHtml = `<div style="margin: 15px 0;"><img src="ex1.jpg" alt="電路圖" style="max-width: 220px; border-radius: 8px; border: 2px solid #3498db;"></div>`;
+
+                    if (type === 0) {
+                        // 求電壓 V
+                        quizData[qId] = {
+                            tag: `歐姆定律 第 ${i}/20 題 (求電壓 V)`,
+                            text: `如圖電路所示，已知電阻 $R = ${r}\\,\\Omega$，電流 $I = ${iCurrent}\\;\\text{A}$。<br>請問電源電壓 $V$ 為多少？${imgHtml}`,
+                            options: [
+                                { text: `${v} $\\text{V}$`, next: nextQId, isCorrect: true },
+                                { text: `${Number((v * 1.5).toFixed(1))} $\\text{V}$`, next: helpId, log: `第${i}題錯：V = I × R 計算錯誤` },
+                                { text: `${Number((v * 0.5).toFixed(1))} $\\text{V}$`, next: helpId, log: `第${i}題錯` },
+                                { text: `${Number((v + 10).toFixed(1))} $\\text{V}$`, next: helpId, log: `第${i}題錯` }
+                            ]
+                        };
+
+                        quizData[helpId] = {
+                            tag: `救援：歐姆定律計算 第 ${i} 題`,
+                            text: `【提示】根據歐姆定律 $V = I \\times R$：<br>$V = ${iCurrent} \\times ${r} = ${v}\\;\\text{V}$。`,
+                            aiPrompt: `請說明歐姆定律 V = IR 的應用，並示範當 I = ${iCurrent} A、R = ${r} Ω 時如何算出 V = ${v} V。`,
+                            aiUrl: "https://gemini.google.com/",
+                            options: [
+                                { text: `${v} $\\text{V}$`, next: nextQId, isCorrect: true },
+                                { text: `${v * 2} $\\text{V}$`, next: helpId, log: `第${i}題救援失敗` }
+                            ]
+                        };
+
+                    } else if (type === 1) {
+                        // 求電流 I
+                        quizData[qId] = {
+                            tag: `歐姆定律 第 ${i}/20 題 (求電流 I)`,
+                            text: `如圖電路所示，已知電源電壓 $V = ${v}\\;\\text{V}$，電阻 $R = ${r}\\,\\Omega$。<br>請問電路中的電流 $I$ 為多少？${imgHtml}`,
+                            options: [
+                                { text: `${iCurrent} $\\text{A}$`, next: nextQId, isCorrect: true },
+                                { text: `${Number((iCurrent * 2).toFixed(2))} $\\text{A}$`, next: helpId, log: `第${i}題錯：I = V / R 計算錯誤` },
+                                { text: `${Number((iCurrent * 0.5).toFixed(2))} $\\text{A}$`, next: helpId, log: `第${i}題錯` },
+                                { text: `${Number((iCurrent + 1).toFixed(2))} $\\text{A}$`, next: helpId, log: `第${i}題錯` }
+                            ]
+                        };
+
+                        quizData[helpId] = {
+                            tag: `救援：歐姆定律計算 第 ${i} 題`,
+                            text: `【提示】根據歐姆定律變形 $I = \\frac{V}{R}$：<br>$I = \\frac{${v}}{${r}} = ${iCurrent}\\;\\text{A}$。`,
+                            aiPrompt: `請說明如何由 V = IR 推導出 I = V/R，並示範當 V = ${v} V、R = ${r} Ω 時如何算出 I = ${iCurrent} A。`,
+                            aiUrl: "https://gemini.google.com/",
+                            options: [
+                                { text: `${iCurrent} $\\text{A}$`, next: nextQId, isCorrect: true },
+                                { text: `${iCurrent * 5} $\\text{A}$`, next: helpId, log: `第${i}題救援失敗` }
+                            ]
+                        };
+
+                    } else {
+                        // 求電阻 R
+                        quizData[qId] = {
+                            tag: `歐姆定律 第 ${i}/20 題 (求電阻 R)`,
+                            text: `如圖電路所示，已知電源電壓 $V = ${v}\\;\\text{V}$，電流 $I = ${iCurrent}\\;\\text{A}$。<br>請問電阻 $R$ 為多少？${imgHtml}`,
+                            options: [
+                                { text: `${r} $\\Omega$`, next: nextQId, isCorrect: true },
+                                { text: `${r + 50} $\\Omega$`, next: helpId, log: `第${i}題錯：R = V / I 計算錯誤` },
+                                { text: `${Math.round(r * 1.5)} $\\Omega$`, next: helpId, log: `第${i}題錯` },
+                                { text: `${Math.round(r * 0.5)} $\\Omega$`, next: helpId, log: `第${i}題錯` }
+                            ]
+                        };
+
+                        quizData[helpId] = {
+                            tag: `救援：歐姆定律計算 第 ${i} 題`,
+                            text: `【提示】根據歐姆定律變形 $R = \\frac{V}{I}$：<br>$R = \\frac{${v}}{${iCurrent}} = ${r}\\,\\Omega$。`,
+                            aiPrompt: `請說明如何由 V = IR 推導出 R = V/I，並示範當 V = ${v} V、I = ${iCurrent} A 時如何算出 R = ${r} Ω。`,
+                            aiUrl: "https://gemini.google.com/",
+                            options: [
+                                { text: `${r} $\\Omega$`, next: nextQId, isCorrect: true },
+                                { text: `${r * 2} $\\Omega$`, next: helpId, log: `第${i}題救援失敗` }
+                            ]
+                        };
                     }
                 }
-
-                quizData[qId] = {
-                    tag: `並聯電阻特訓 第 ${i}/20 題`,
-                    text: `如圖所示，若有兩個電阻 $R_1 = ${r1}\\,\\Omega$ 與 $R_2 = ${r2}\\,\\Omega$ 並聯連接，請問其等效總電阻 $R_T$ 約為多少？`,
-                    options: [
-                        { text: `${rt} $\\Omega$`, next: nextQId, isCorrect: true },
-                        { text: `${wrongOptions[0]} $\\Omega$`, next: helpId, log: `第${i}題錯：計算 ${r1}//${r2} 時公式使用錯誤` },
-                        { text: `${wrongOptions[1]} $\\Omega$`, next: helpId, log: `第${i}題錯` },
-                        { text: `${wrongOptions[2]} $\\Omega$`, next: helpId, log: `第${i}題錯` }
-                    ]
-                };
-
-                quizData[helpId] = {
-                    tag: `救援：並聯電阻計算第 ${i} 題`,
-                    text: `【提示】雙電阻並聯計算公式為：$R_T = \\frac{R_1 \\times R_2}{R_1 + R_2} = \\frac{${r1} \\times ${r2}}{${r1} + ${r2}} = \\frac{${r1 * r2}}{${r1 + r2}} \\approx ${rt}\\,\\Omega$。並聯後的總電阻一定會小於其中任何一個分電阻！`,
-                    aiPrompt: `請幫我詳細說明當 R1 = ${r1} 歐姆、R2 = ${r2} 歐姆時，如何計算並聯總電阻，並解釋分流與倒數和的概念。`,
-                    aiUrl: "https://gemini.google.com/",
-                    options: [
-                        { text: `${rt} $\\Omega$`, next: nextQId, isCorrect: true },
-                        { text: `大於 ${Math.max(r1, r2)} $\\Omega$`, next: helpId, log: `第${i}題救援失敗：誤以為並聯電阻會變大` }
-                    ]
-                };
             }
             quizData["end"] = { tag: "結束", text: "" };
         }
