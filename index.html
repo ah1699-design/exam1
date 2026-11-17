@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>抽卡特訓班 (並聯電阻隨機特訓與右下角計算機)</title>
+    <title>抽卡特訓班 (一元一次方程式與歐姆定律練習)</title>
 
     <script>
         window.MathJax = {
@@ -323,6 +323,13 @@
         }
 
         function calcAppend(char) {
+const isOp = '+-*/'.includes(char);
+    if (isOp && /[+\-*/]$/.test(calcDisplayValue)) {
+        calcDisplayValue = calcDisplayValue.slice(0, -1) + char;
+        calcJustEvaluated = false;
+        updateCalcScreen();
+        return;
+    }
             if (calcJustEvaluated && !isNaN(char)) {
                 calcDisplayValue = char;
                 calcJustEvaluated = false;
@@ -346,7 +353,7 @@
                     calcDisplayValue = "錯誤";
                 } else {
                     // 取小數點後兩位（若有需要）
-                    calcDisplayValue = String(Number(result.toFixed(2)));
+                    calcDisplayValue = String(Number(result.toFixed(4)));
                 }
                 calcJustEvaluated = true;
             } catch (error) {
@@ -386,6 +393,13 @@
                 gain.gain.setValueAtTime(0.4, now); osc.start(now); osc.stop(now + 0.7);
             }
         }
+function findCardMaster(cardId) {
+    for (let key in cardPacks) {
+        const found = cardPacks[key].cards.find(c => c.id === cardId);
+        if (found) return found;
+    }
+    return null;
+}
 
 // ==========================================
 // 📦 系統擴充：馬刺隊 25-26 賽季特訓卡包 (修正版)
@@ -426,7 +440,9 @@ const cardPacks = {
                     { id: "c27", name: "【N】阿羅拉烏波", rarity: "N", chance: 7.0, image: "images/N4.jpg", synthTarget: "c_sp1" },
                     { id: "c28", name: "【N】愛吃豚", rarity: "N", chance: 7.0, image: "images/N5.jpg", synthTarget: "c_sp1" },
                     { id: "c29", name: "【N】原野水母", rarity: "N", chance: 7.0, image: "images/N6.jpg", synthTarget: "c_sp1" },
-                    { id: "c30", name: "【N】光蚵仔", rarity: "N", chance: 7.0, image: "images/N7.jpg", synthTarget: "c_sp1" }
+                    { id: "c30", name: "【N】光蚵仔", rarity: "N", chance: 7.0, image: "images/N7.jpg", synthTarget: "c_sp1" },
+	{ id: "p1_god", name: "【SP】頂級神人", rarity: "SP", chance: 0, image: "images/god_mode.jpg" },
+	{ id: "p2_ai",  name: "【AI】Gemini 戰術教練卡", rarity: "SR", chance: 0, image: "images/ai_coach.jpg" }
                 ]
             }
             
@@ -435,7 +451,26 @@ const cardPacks = {
         // 🧠 20 題動態隨機題庫產生器 (前10題：一元一次方程式，後10題：V=IR歐姆定律練習)
         let quizData = {};
 
-        function generateRandomParallelQuiz() {
+        function roundTo(n, digits) { return Number(n.toFixed(digits)); }
+
+// 產生 count 個「不重複、大於 0、不等於正解」的錯誤選項
+function pickWrongs(correct, candidates, count, digits) {
+    const seen = new Set([roundTo(correct, digits)]);
+    const pool = [];
+    candidates.forEach(c => {
+        const val = roundTo(c, digits);
+        if (val > 0 && !seen.has(val)) { seen.add(val); pool.push(val); }
+    });
+    shuffleArray(pool);
+    let k = 3; // 保底：候選不夠時自動補數字
+    while (pool.length < count) {
+        const val = roundTo(correct * k, digits);
+        if (val > 0 && !seen.has(val)) { seen.add(val); pool.push(val); }
+        k++;
+    }
+    return pool.slice(0, count);
+}
+	function generateRandomParallelQuiz() {
             quizData = {};
 
             for (let i = 1; i <= 20; i++) {
@@ -481,92 +516,75 @@ const cardPacks = {
                         ]
                     };
 
-                } else {
-                    // 後 10 題：V = IR 歐姆定律練習 (隨機挖掉 V, I, 或 R 其中一個)
-                    let type = Math.floor(Math.random() * 3); // 0: 求V, 1: 求I, 2: 求R
-                    let rVals = [10, 20, 50, 100, 200, 220, 300, 470, 500, 1000];
-                    let iVals = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2]; // 常用電流 (A)
+} else {
+    // 後 10 題：V = IR 歐姆定律練習
+    let type = Math.floor(Math.random() * 3); // 0: 求V, 1: 求I, 2: 求R
+    let rVals = [10, 20, 50, 100, 200, 220, 300, 470, 500, 1000];
+    let iVals = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2];
 
-                    let r = rVals[Math.floor(Math.random() * rVals.length)];
-                    let iCurrent = iVals[Math.floor(Math.random() * iVals.length)];
-                    let v = Number((iCurrent * r).toFixed(1)); // 計算電壓 V
+    let r = rVals[Math.floor(Math.random() * rVals.length)];
+    let iCurrent = iVals[Math.floor(Math.random() * iVals.length)];
+    let v = roundTo(iCurrent * r, 2);
 
-                    // 圖片標籤與顯示設定
-                    let imgHtml = `<div style="margin: 15px 0;"><img src="ex1.jpg" alt="電路圖" style="max-width: 220px; border-radius: 8px; border: 2px solid #3498db;"></div>`;
+    let imgHtml = `<div style="margin: 15px 0;"><img src="ex1.jpg" alt="電路圖" style="max-width: 220px; border-radius: 8px; border: 2px solid #3498db;"></div>`;
 
-                    if (type === 0) {
-                        // 求電壓 V
-                        quizData[qId] = {
-                            tag: `歐姆定律 第 ${i}/20 題 (求電壓 V)`,
-                            text: `如圖電路所示，已知電阻 $R = ${r}\\,\\Omega$，電流 $I = ${iCurrent}\\;\\text{A}$。<br>請問電源電壓 $V$ 為多少？${imgHtml}`,
-                            options: [
-                                { text: `${v} $\\text{V}$`, next: nextQId, isCorrect: true },
-                                { text: `${Number((v * 1.5).toFixed(1))} $\\text{V}$`, next: helpId, log: `第${i}題錯：V = I × R 計算錯誤` },
-                                { text: `${Number((v * 0.5).toFixed(1))} $\\text{V}$`, next: helpId, log: `第${i}題錯` },
-                                { text: `${Number((v + 10).toFixed(1))} $\\text{V}$`, next: helpId, log: `第${i}題錯` }
-                            ]
-                        };
+    let cfg;
+    if (type === 0) {
+        cfg = {
+            label: "求電壓 V", correct: v, digits: 2, unit: "$\\text{V}$",
+            cands: [v * 1.5, v * 0.5, v + 10, v * 2, v * 10, v / 10],
+            rescueWrong: v * 2, errNote: "V = I × R 計算錯誤",
+            text: `如圖電路所示，已知電阻 $R = ${r}\\,\\Omega$，電流 $I = ${iCurrent}\\;\\text{A}$。<br>請問電源電壓 $V$ 為多少？${imgHtml}`,
+            hint: `【提示】根據歐姆定律 $V = I \\times R$：<br>$V = ${iCurrent} \\times ${r} = ${v}\\;\\text{V}$。`,
+            aiPrompt: `請說明歐姆定律 V = IR 的應用，並示範當 I = ${iCurrent} A、R = ${r} Ω 時如何算出 V = ${v} V。`
+        };
+    } else if (type === 1) {
+        cfg = {
+            label: "求電流 I", correct: iCurrent, digits: 3, unit: "$\\text{A}$",
+            cands: [iCurrent * 2, iCurrent * 0.5, iCurrent + 1, iCurrent * 10, iCurrent / 10],
+            rescueWrong: iCurrent * 5, errNote: "I = V / R 計算錯誤",
+            text: `如圖電路所示，已知電源電壓 $V = ${v}\\;\\text{V}$，電阻 $R = ${r}\\,\\Omega$。<br>請問電路中的電流 $I$ 為多少？${imgHtml}`,
+            hint: `【提示】根據歐姆定律變形 $I = \\frac{V}{R}$：<br>$I = \\frac{${v}}{${r}} = ${iCurrent}\\;\\text{A}$。`,
+            aiPrompt: `請說明如何由 V = IR 推導出 I = V/R，並示範當 V = ${v} V、R = ${r} Ω 時如何算出 I = ${iCurrent} A。`
+        };
+    } else {
+        cfg = {
+            label: "求電阻 R", correct: r, digits: 0, unit: "$\\Omega$",
+            cands: [r + 50, r * 1.5, r * 0.5, r * 2, r + 100, r * 10],
+            rescueWrong: r * 2, errNote: "R = V / I 計算錯誤",
+            text: `如圖電路所示，已知電源電壓 $V = ${v}\\;\\text{V}$，電流 $I = ${iCurrent}\\;\\text{A}$。<br>請問電阻 $R$ 為多少？${imgHtml}`,
+            hint: `【提示】根據歐姆定律變形 $R = \\frac{V}{I}$：<br>$R = \\frac{${v}}{${iCurrent}} = ${r}\\,\\Omega$。`,
+            aiPrompt: `請說明如何由 V = IR 推導出 R = V/I，並示範當 V = ${v} V、I = ${iCurrent} A 時如何算出 R = ${r} Ω。`
+        };
+    }
 
-                        quizData[helpId] = {
-                            tag: `救援：歐姆定律計算 第 ${i} 題`,
-                            text: `【提示】根據歐姆定律 $V = I \\times R$：<br>$V = ${iCurrent} \\times ${r} = ${v}\\;\\text{V}$。`,
-                            aiPrompt: `請說明歐姆定律 V = IR 的應用，並示範當 I = ${iCurrent} A、R = ${r} Ω 時如何算出 V = ${v} V。`,
-                            aiUrl: "https://gemini.google.com/",
-                            options: [
-                                { text: `${v} $\\text{V}$`, next: nextQId, isCorrect: true },
-                                { text: `${v * 2} $\\text{V}$`, next: helpId, log: `第${i}題救援失敗` }
-                            ]
-                        };
+    const fmt = val => `${val} ${cfg.unit}`;
+    const wrongs = pickWrongs(cfg.correct, cfg.cands, 3, cfg.digits);
 
-                    } else if (type === 1) {
-                        // 求電流 I
-                        quizData[qId] = {
-                            tag: `歐姆定律 第 ${i}/20 題 (求電流 I)`,
-                            text: `如圖電路所示，已知電源電壓 $V = ${v}\\;\\text{V}$，電阻 $R = ${r}\\,\\Omega$。<br>請問電路中的電流 $I$ 為多少？${imgHtml}`,
-                            options: [
-                                { text: `${iCurrent} $\\text{A}$`, next: nextQId, isCorrect: true },
-                                { text: `${Number((iCurrent * 2).toFixed(2))} $\\text{A}$`, next: helpId, log: `第${i}題錯：I = V / R 計算錯誤` },
-                                { text: `${Number((iCurrent * 0.5).toFixed(2))} $\\text{A}$`, next: helpId, log: `第${i}題錯` },
-                                { text: `${Number((iCurrent + 1).toFixed(2))} $\\text{A}$`, next: helpId, log: `第${i}題錯` }
-                            ]
-                        };
+    quizData[qId] = {
+        tag: `歐姆定律 第 ${i}/20 題 (${cfg.label})`,
+        text: cfg.text,
+        options: [
+            { text: fmt(cfg.correct), next: nextQId, isCorrect: true },
+            ...wrongs.map((w, idx) => ({
+                text: fmt(w), next: helpId,
+                log: idx === 0 ? `第${i}題錯：${cfg.errNote}` : `第${i}題錯`
+            }))
+        ]
+    };
 
-                        quizData[helpId] = {
-                            tag: `救援：歐姆定律計算 第 ${i} 題`,
-                            text: `【提示】根據歐姆定律變形 $I = \\frac{V}{R}$：<br>$I = \\frac{${v}}{${r}} = ${iCurrent}\\;\\text{A}$。`,
-                            aiPrompt: `請說明如何由 V = IR 推導出 I = V/R，並示範當 V = ${v} V、R = ${r} Ω 時如何算出 I = ${iCurrent} A。`,
-                            aiUrl: "https://gemini.google.com/",
-                            options: [
-                                { text: `${iCurrent} $\\text{A}$`, next: nextQId, isCorrect: true },
-                                { text: `${iCurrent * 5} $\\text{A}$`, next: helpId, log: `第${i}題救援失敗` }
-                            ]
-                        };
-
-                    } else {
-                        // 求電阻 R
-                        quizData[qId] = {
-                            tag: `歐姆定律 第 ${i}/20 題 (求電阻 R)`,
-                            text: `如圖電路所示，已知電源電壓 $V = ${v}\\;\\text{V}$，電流 $I = ${iCurrent}\\;\\text{A}$。<br>請問電阻 $R$ 為多少？${imgHtml}`,
-                            options: [
-                                { text: `${r} $\\Omega$`, next: nextQId, isCorrect: true },
-                                { text: `${r + 50} $\\Omega$`, next: helpId, log: `第${i}題錯：R = V / I 計算錯誤` },
-                                { text: `${Math.round(r * 1.5)} $\\Omega$`, next: helpId, log: `第${i}題錯` },
-                                { text: `${Math.round(r * 0.5)} $\\Omega$`, next: helpId, log: `第${i}題錯` }
-                            ]
-                        };
-
-                        quizData[helpId] = {
-                            tag: `救援：歐姆定律計算 第 ${i} 題`,
-                            text: `【提示】根據歐姆定律變形 $R = \\frac{V}{I}$：<br>$R = \\frac{${v}}{${iCurrent}} = ${r}\\,\\Omega$。`,
-                            aiPrompt: `請說明如何由 V = IR 推導出 R = V/I，並示範當 V = ${v} V、I = ${iCurrent} A 時如何算出 R = ${r} Ω。`,
-                            aiUrl: "https://gemini.google.com/",
-                            options: [
-                                { text: `${r} $\\Omega$`, next: nextQId, isCorrect: true },
-                                { text: `${r * 2} $\\Omega$`, next: helpId, log: `第${i}題救援失敗` }
-                            ]
-                        };
-                    }
-                }
+    quizData[helpId] = {
+        tag: `救援：歐姆定律計算 第 ${i} 題`,
+        text: cfg.hint,
+        aiPrompt: cfg.aiPrompt,
+        aiUrl: "https://gemini.google.com/",
+        options: [
+            { text: fmt(cfg.correct), next: nextQId, isCorrect: true },
+            { text: fmt(roundTo(cfg.rescueWrong, cfg.digits)), next: helpId, log: `第${i}題救援失敗` }
+        ]
+    };
+}
+                
             }
             quizData["end"] = { tag: "結束", text: "" };
         }
@@ -584,7 +602,7 @@ const cardPacks = {
         let rescueFails = 0;
         let aiCopyCount = 0; 
         let isTransitioning = false; 
-        let currentPackId = "phase2"; 
+        let currentPackId = Object.keys(cardPacks)[0]; 
 
         document.addEventListener('DOMContentLoaded', () => {
             initPackSelector();
@@ -967,22 +985,23 @@ const cardPacks = {
         }
 
         function drawCard() {
-            const cardObj = document.getElementById('revealed-card');
-            
-            if (!cardPacks[currentPackId] || cardPacks[currentPackId].cards.length === 0) {
-                currentPackId = "phase2";
-            }
-            
-            let currentPool = cardPacks[currentPackId].cards;
-            let drawablePool = currentPool.filter(c => c.chance > 0);
-            
-            let randomNum = Math.random() * 100;
-            let currentLimit = 0;
-            let resultCard = drawablePool[drawablePool.length - 1]; 
-            for (let i = 0; i < drawablePool.length; i++) {
-                currentLimit += drawablePool[i].chance;
-                if (randomNum <= currentLimit) { resultCard = drawablePool[i]; break; }
-            }
+    const cardObj = document.getElementById('revealed-card');
+
+    if (!cardPacks[currentPackId] || cardPacks[currentPackId].cards.length === 0) {
+        currentPackId = Object.keys(cardPacks)[0];
+    }
+
+    let drawablePool = cardPacks[currentPackId].cards.filter(c => c.chance > 0);
+
+    // 權重總和不一定是 100，自動正規化
+    const totalWeight = drawablePool.reduce((sum, c) => sum + c.chance, 0);
+    let randomNum = Math.random() * totalWeight;
+    let currentLimit = 0;
+    let resultCard = drawablePool[drawablePool.length - 1];
+    for (let i = 0; i < drawablePool.length; i++) {
+        currentLimit += drawablePool[i].chance;
+        if (randomNum <= currentLimit) { resultCard = drawablePool[i]; break; }
+    }
 
             cardObj.className = "gacha-card"; 
             cardObj.classList.add(`card-${resultCard.rarity}`);
@@ -1014,11 +1033,7 @@ const cardPacks = {
             let currentCollection = JSON.parse(localStorage.getItem(storageKey)) || [];
 
             if (hp === 30 && failedQuestions.length === 0) {
-                let godCardMaster = null;
-                for (let key in cardPacks) {
-                    let found = cardPacks[key].cards.find(c => c.id === "p1_god");
-                    if (found) { godCardMaster = found; break; }
-                }
+               let godCardMaster = findCardMaster("p1_god");
                 
                 if (godCardMaster) {
                     let existingGodCard = currentCollection.find(c => c.id === "p1_god");
@@ -1037,7 +1052,7 @@ const cardPacks = {
                 if (aiCard) {
                     aiCard.count++;
                 } else {
-                    let aiCardMaster = cardPacks[currentPackId].cards.find(c => c.id === "p2_ai");
+                    let aiCardMaster = findCardMaster("p2_ai");
                     if (aiCardMaster) {
                         currentCollection.push({ ...aiCardMaster, count: 1 });
                     }
@@ -1052,7 +1067,7 @@ const cardPacks = {
             totalTime = Math.round((Date.now() - startTime) / 1000);
 
             let reportArea = document.getElementById('log-report');
-            let logText = diagnosticLogs.length === 0 ? "🌟 完美通關，並聯電阻概念極度扎實！" : "⚠️ 盲點診斷 (請老師留意)：\n" + diagnosticLogs.join("\n");
+            let logText = diagnosticLogs.length === 0 ? "🌟 完美通關，一元一次方程式與歐姆定律概念都很扎實！" : "⚠️ 盲點診斷 (請老師留意)：\n" + diagnosticLogs.join("\n");
             
             let finalScoreText = `血量剩餘：${hp}\n🕒 耗時：${totalTime} 秒\n🤖 求助 AI 次數：${aiCopyCount} 次\n🏀 本局共獲得 ${sessionCards.length} 張卡片\n\n`;
             reportArea.innerText = finalScoreText + logText;
@@ -1068,7 +1083,7 @@ const cardPacks = {
                 diagnosticLogs.length, 
                 `[AI求助:${aiCopyCount}次] | ` + diagnosticLogs.join(" | "), 
                 itemsText,
-                "雙電阻並聯隨機特訓"
+                "一元一次方程式與歐姆定律隨機特訓"
             );
         }
         
